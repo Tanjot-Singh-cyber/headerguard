@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>HeaderGuard — HTTP Security Analyzer</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Syne:wght@400;600&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0d0d;
+      --surface: #141414;
+      --surface2: #1a1a1a;
+      --border: #2a2a2a;
+      --text: #f0f0f0;
+      --muted: #666;
+      --green: #00e676;
+      --yellow: #ffd740;
+      --red: #ff5252;
+      --blue: #448aff;
+      --font-head: 'Syne', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-mono);
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    .container { max-width: 860px; margin: 0 auto; }
+
+    header { margin-bottom: 3rem; }
+
+    .logo {
+      font-family: var(--font-head);
+      font-size: 2rem;
+      font-weight: 600;
+      letter-spacing: -0.5px;
+    }
+
+    .logo span { color: var(--green); }
+
+    .tagline {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 0.25rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 2.5rem;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+      padding: 0.75rem 1rem;
+      border-radius: 6px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input[type="text"]:focus { border-color: var(--green); }
+    input[type="text"]::placeholder { color: var(--muted); }
+
+    button {
+      background: var(--green);
+      color: #000;
+      border: none;
+      font-family: var(--font-mono);
+      font-weight: 500;
+      font-size: 0.85rem;
+      padding: 0.75rem 1.5rem;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: opacity 0.2s;
+      white-space: nowrap;
+    }
+
+    button:hover { opacity: 0.85; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .error-box {
+      background: #1a0a0a;
+      border: 1px solid var(--red);
+      color: var(--red);
+      padding: 0.75rem 1rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      margin-bottom: 1.5rem;
+      display: none;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+    }
+
+    .stat-label {
+      font-size: 0.7rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-value {
+      font-family: var(--font-head);
+      font-size: 1.6rem;
+      font-weight: 600;
+    }
+
+    .grade-A\+, .grade-A { color: var(--green); }
+    .grade-B { color: #69f0ae; }
+    .grade-C { color: var(--yellow); }
+    .grade-D { color: #ff9100; }
+    .grade-F { color: var(--red); }
+
+    .risk-Critical { color: var(--red); }
+    .risk-High { color: #ff9100; }
+    .risk-Medium { color: var(--yellow); }
+    .risk-Low { color: var(--green); }
+
+    .section-title {
+      font-size: 0.7rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .header-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 0.75rem;
+      border-left: 3px solid transparent;
+    }
+
+    .header-card.present { border-left-color: var(--green); }
+    .header-card.weak { border-left-color: var(--yellow); }
+    .header-card.missing { border-left-color: var(--red); }
+
+    .header-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .header-name {
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    .badges { display: flex; gap: 0.4rem; align-items: center; }
+
+    .badge {
+      font-size: 0.65rem;
+      padding: 2px 8px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 500;
+    }
+
+    .badge-present { background: #003d1f; color: var(--green); }
+    .badge-weak { background: #3d2e00; color: var(--yellow); }
+    .badge-missing { background: #3d0a0a; color: var(--red); }
+    .badge-high { background: #2a0a0a; color: #ff7070; }
+    .badge-medium { background: #2a1a00; color: #ffb74d; }
+    .badge-low { background: #0a1a0a; color: #81c784; }
+
+    .header-value {
+      font-size: 0.75rem;
+      color: var(--blue);
+      background: var(--surface2);
+      padding: 0.3rem 0.6rem;
+      border-radius: 4px;
+      margin-bottom: 0.6rem;
+      word-break: break-all;
+    }
+
+    .header-desc {
+      font-size: 0.78rem;
+      color: var(--muted);
+      line-height: 1.6;
+      margin-bottom: 0.4rem;
+    }
+
+    .header-attack {
+      font-size: 0.75rem;
+      color: #ff8a80;
+      line-height: 1.6;
+      padding: 0.4rem 0.6rem;
+      background: #1a0808;
+      border-radius: 4px;
+      margin-top: 0.5rem;
+    }
+
+    .header-attack::before { content: "attacker can: "; color: var(--red); font-weight: 500; }
+
+    .header-warn {
+      font-size: 0.75rem;
+      color: #ffe082;
+      line-height: 1.6;
+      padding: 0.4rem 0.6rem;
+      background: #1a1200;
+      border-radius: 4px;
+      margin-top: 0.5rem;
+    }
+
+    .header-warn::before { content: "warning: "; color: var(--yellow); font-weight: 500; }
+
+    .header-rec {
+      font-size: 0.75rem;
+      color: #b0bec5;
+      line-height: 1.6;
+      padding: 0.4rem 0.6rem;
+      background: var(--surface2);
+      border-radius: 4px;
+      margin-top: 0.5rem;
+    }
+
+    .header-rec::before { content: "fix: "; color: var(--blue); font-weight: 500; }
+
+    .info-leak-card {
+      background: #1a1000;
+      border: 1px solid #3d2e00;
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      margin-bottom: 0.75rem;
+      font-size: 0.8rem;
+      color: var(--yellow);
+    }
+
+    .redirect-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      margin-bottom: 0.75rem;
+      font-size: 0.8rem;
+    }
+
+    .meta-row {
+      display: flex;
+      gap: 1.5rem;
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .meta-row span { display: flex; align-items: center; gap: 0.4rem; }
+
+    #results { display: none; }
+
+    .loader {
+      display: none;
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 1.5rem;
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+    .section { margin-bottom: 2rem; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="logo">Header<span>Guard</span></div>
+    <div class="tagline">HTTP Security Header Analyzer</div>
+  </header>
+
+  <div class="input-row">
+    <input type="text" id="urlInput" placeholder="https://example.com" />
+    <button id="scanBtn" onclick="scan()">Scan</button>
+  </div>
+
+  <div class="error-box" id="errorBox"></div>
+  <div class="loader" id="loader">scanning target...</div>
+
+  <div id="results">
+
+    <div class="meta-row" id="metaRow"></div>
+
+    <div class="summary-grid" id="summaryGrid"></div>
+
+    <div class="section" id="leakSection" style="display:none;">
+      <div class="section-title">info leakage detected</div>
+      <div id="leakCards"></div>
+    </div>
+
+    <div class="section" id="redirectSection" style="display:none;">
+      <div class="section-title">redirect info</div>
+      <div id="redirectCard"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">security headers</div>
+      <div id="headerCards"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  async function scan() {
+    const url = document.getElementById('urlInput').value.trim();
+    const btn = document.getElementById('scanBtn');
+    const errorBox = document.getElementById('errorBox');
+    const loader = document.getElementById('loader');
+    const results = document.getElementById('results');
+
+    errorBox.style.display = 'none';
+    results.style.display = 'none';
+    loader.style.display = 'block';
+    btn.disabled = true;
+
+    try {
+      const res = await fetch('/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      });
+      const data = await res.json();
+
+      if (data.error) {
+        errorBox.textContent = data.error;
+        errorBox.style.display = 'block';
+        return;
+      }
+
+      renderResults(data);
+      results.style.display = 'block';
+
+    } catch (e) {
+      errorBox.textContent = 'Something went wrong. Check your connection.';
+      errorBox.style.display = 'block';
+    } finally {
+      loader.style.display = 'none';
+      btn.disabled = false;
+    }
+  }
+
+  function renderResults(data) {
+    // meta row
+    document.getElementById('metaRow').innerHTML = `
+      <span>url: ${data.url}</span>
+      <span>status: ${data.status_code}</span>
+      <span>response: ${data.response_time_ms}ms</span>
+    `;
+
+    // summary grid
+    document.getElementById('summaryGrid').innerHTML = `
+      <div class="stat-card">
+        <div class="stat-label">Grade</div>
+        <div class="stat-value grade-${data.grade.replace('+','\\+')}">${data.grade}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Risk Level</div>
+        <div class="stat-value risk-${data.risk_level}">${data.risk_level}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Score</div>
+        <div class="stat-value">${data.score}/${data.total}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Headers Found</div>
+        <div class="stat-value">${data.results.filter(r => r.status === 'present').length}</div>
+      </div>
+    `;
+
+    // info leaks
+    if (data.info_leaks && data.info_leaks.length > 0) {
+      document.getElementById('leakSection').style.display = 'block';
+      document.getElementById('leakCards').innerHTML = data.info_leaks
+        .map(l => `<div class="info-leak-card">${l.message}</div>`)
+        .join('');
+    }
+
+    // redirect
+    if (data.redirect_info && data.redirect_info.detected) {
+      document.getElementById('redirectSection').style.display = 'block';
+      document.getElementById('redirectCard').innerHTML = `
+        <div class="redirect-card" style="color: ${data.redirect_info.safe ? 'var(--green)' : 'var(--yellow)'}">
+          ${data.redirect_info.type}
+        </div>`;
+    }
+
+    // header cards
+    document.getElementById('headerCards').innerHTML = data.results.map(r => `
+      <div class="header-card ${r.status}">
+        <div class="header-top">
+          <span class="header-name">${r.header}</span>
+          <div class="badges">
+            <span class="badge badge-${r.severity.toLowerCase()}">${r.severity}</span>
+            <span class="badge badge-${r.status}">${r.status}</span>
+          </div>
+        </div>
+        ${r.value ? `<div class="header-value">${r.value}</div>` : ''}
+        <div class="header-desc">${r.description}</div>
+        ${r.warning_message ? `<div class="header-warn">${r.warning_message}</div>` : ''}
+        ${r.attack ? `<div class="header-attack">${r.attack}</div>` : ''}
+        ${r.recommendation ? `<div class="header-rec">${r.recommendation}</div>` : ''}
+      </div>
+    `).join('');
+  }
+
+  document.getElementById('urlInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') scan();
+  });
+</script>
+</body>
+</html>
