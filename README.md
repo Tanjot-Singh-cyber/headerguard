@@ -1,104 +1,66 @@
 # HeaderGuard
-### HTTP Security Header Analyzer
 
-HeaderGuard scans any web target and analyzes its HTTP response headers against a checklist of critical security headers. It identifies what's missing, what's misconfigured, assigns a severity, explains the attack vector, and gives the target an overall security grade.
+HTTP security analyzer that checks websites across three layers — HTTP headers, TLS/SSL configuration, and AI-powered contextual analysis.
 
-Built with Python + Flask. Hosted on Replit.
+## What it does
 
----
+Paste any URL and HeaderGuard gives you:
+- A security grade (A+ to F)
+- Risk level (Critical / High / Medium / Low)
+- Detailed findings across three analysis layers
 
-## What it analyzes
+## Three-layer analysis
 
-| Header | Severity | What it prevents |
-|---|---|---|
-| Content-Security-Policy | High | XSS — blocks injection of malicious scripts |
-| Strict-Transport-Security | High | MITM — forces HTTPS, prevents downgrade attacks |
-| X-Frame-Options | Medium | Clickjacking — blocks iframe embedding |
-| X-Content-Type-Options | Medium | MIME sniffing — stops browser from guessing content type |
-| Referrer-Policy | Low | Data leakage — controls referrer info sent to third parties |
-| Permissions-Policy | Low | Feature abuse — restricts camera, mic, geolocation access |
+### Layer 7 — HTTP Security Headers
+Rule-based checks for six critical headers:
+- Content-Security-Policy
+- Strict-Transport-Security
+- X-Frame-Options
+- X-Content-Type-Options
+- Referrer-Policy
+- Permissions-Policy
 
----
+Each header is graded as present / weak / missing with attack scenario explanations and fix recommendations.
 
-## Features
+### Layer 4 — TLS/SSL Analysis
+Direct TLS inspection using Python's ssl and socket libraries:
+- Protocol version (TLS 1.3 / 1.2 / legacy)
+- Cipher suite strength
+- Certificate expiry tracking
+- Self-signed certificate detection
+- Hostname mismatch detection
 
-- **3-state header analysis** — Present, Weak, or Missing (not just pass/fail)
-- **Attack explanation** — for every missing or weak header, shows what an attacker can actually do
-- **Weak config detection** — flags dangerous CSP directives like `unsafe-inline` and `unsafe-eval`, short HSTS `max-age`, and deprecated `X-Frame-Options: ALLOW-FROM`
-- **Info leakage detection** — flags exposed `Server`, `X-Powered-By`, and `X-AspNet-Version` headers that reveal your tech stack
-- **Redirect tracking** — detects HTTP → HTTPS redirects
-- **Response time measurement** — shows server response latency in ms
-- **Security grade** — A+ to F based on weighted scoring
-- **Risk level** — Critical / High / Medium / Low based on what's missing
+Critical TLS findings drop the overall grade.
 
----
+### AI Contextual Analysis
+Gemini API integration that reads the full scan result and provides:
+- Plain English security summary
+- False positive detection — flags headers that may not be needed based on context
+- Prioritized fix list
+- Confidence score
 
-## Bug Bounty Recon Use Case
+## Why this matters
+Rule-based scanners treat every missing header as equally bad regardless of context. HeaderGuard V2 uses AI to reduce false positives — for example, flagging a missing CSP as lower risk on a static site with no JavaScript.
 
-HeaderGuard is useful as a **first recon step** before hunting on platforms like HackerOne or Bugbase.
+## Tech stack
+- Python / Flask
+- requests, ssl, socket (standard library)
+- Google Gemini API
+- Vanilla JS frontend
 
-Missing headers are rarely accepted as standalone findings, but they reveal attack surface:
+## Versions
+- v1.0.0 — Rule-based HTTP header analysis
+- v2.0.0 — Added TLS/SSL layer + AI contextual analysis
 
-- **CSP missing** → XSS payloads won't be blocked → hunt for injection points
-- **HSTS missing** → check if HTTP version of the site exposes sensitive endpoints
-- **X-Frame-Options missing** → look for clickjacking on sensitive actions like payments or account settings
-- **Info leakage** → exposed server version → research known CVEs for that version
-
-Use the scan results to decide where to dig deeper, not as the finding itself.
-
----
-
-## Tech Stack
-
-- Python 3
-- Flask
-- Requests
-- HTML / CSS / JavaScript (vanilla)
-
----
-
-## Project Structure
-
-```
-headerguard/
-├── main.py             # Flask app — routes
-├── analyzer.py         # Core analysis logic
-├── requirements.txt    # Dependencies
-├── templates/
-│   └── index.html      # Frontend UI
-└── static/
-    └── style.css
-```
-
----
-
-## Run Locally
-
+## Setup
 ```bash
-git clone https://github.com/Tanjot-Singh-cyber/headerguard.git
+git clone https://github.com/Tanjot-Singh-cyber/headerguard
 cd headerguard
-pip install -r requirements.txt
-python main.py
+pip install flask requests
+# Add GEMINI_API_KEY to environment
+python app.py
 ```
 
-Then open `http://localhost:5000` in your browser.
-
----
-
-## Sample Results
-
-Tested against real targets:
-
-| Target | Grade | Notes |
-|---|---|---|
-| google.com | F | Missing CSP, HSTS, and more — intentional for a marketing page |
-| hackerone.com | C | Better than average but still missing key headers |
-| portswigger.net | D | Makers of Burp Suite — still missing critical headers |
-| bugbase.in | D | Indian bug bounty platform |
-
----
-
-## Author
-
-Tanjot Singh — B.Tech CSE, MIET Jammu  
-[GitHub](https://github.com/Tanjot-Singh-cyber)
+## Roadmap
+- V3 — Packet capture, unified score, fix generator, PDF export
+- V4 — CI/CD GitHub Action, PR bot with line-level fixes
